@@ -35,6 +35,21 @@ Proyecto listo para crear vídeos con código (React) usando [Remotion](https://
 - `props.json` / `videos.json` – datos para generar vídeos sin tocar código.
 - `public/` – pon aquí imágenes, música o clips y úsalos con `staticFile('archivo.mp4')`.
 
+## Vídeo de cumpleaños de Oscar
+
+Edición del vídeo `public/video-subir.mp4` (composición `CumpleOscar`, vertical 1080×1920):
+
+- Portada animada al principio y tarjeta final, con tarta, globos y confeti.
+- En cada uno de los 13 mensajes: explosión de confeti, una fila de velas que se van encendiendo
+  (una por mensaje) y un rótulo "Mensaje N de 13" con una frase.
+- Para poner el nombre de quien habla en cada mensaje, rellena `nombre` en `src/cumple/datos.ts`.
+  Ahí también se cambian las frases, los colores y los tiempos de cada mensaje.
+
+```bash
+npm run studio         # previsualizar y elegir "CumpleOscar"
+npm run render:cumple  # genera out/cumple-oscar.mp4
+```
+
 ## Ejemplos útiles de FFmpeg
 
 ```bash
