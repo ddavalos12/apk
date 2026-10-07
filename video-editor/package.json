@@ -1,0 +1,26 @@
+{
+  "name": "video-editor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Edición automática de vídeos con Remotion + FFmpeg",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render Principal out/video.mp4",
+    "render:datos": "remotion render Principal out/video.mp4 --props=./datos.json",
+    "lote": "node scripts/render-lote.mjs",
+    "ffmpeg:check": "node scripts/check-ffmpeg.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.534",
+    "@remotion/cli": "4.0.534",
+    "@remotion/renderer": "4.0.534",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "remotion": "4.0.534",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "typescript": "7.0.2"
+  }
+}
