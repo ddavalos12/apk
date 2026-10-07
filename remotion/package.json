@@ -1,0 +1,21 @@
+{
+  "name": "bumand-album",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Edición del álbum de fotos BumanD con Remotion",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render BumandAlbum out/bumand_editado.mp4",
+    "render:preview": "remotion render BumandAlbum out/preview.mp4 --scale=0.5 --crf=28"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.290",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.290"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "typescript": "5.6.3"
+  }
+}
