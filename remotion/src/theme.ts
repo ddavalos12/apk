@@ -1,4 +1,4 @@
-import {continueRender, delayRender} from 'remotion';
+import {loadFont} from '@remotion/fonts';
 import greatVibes from './fonts/GreatVibes.woff2';
 import montserrat500 from './fonts/Montserrat-500.woff2';
 import montserrat700 from './fonts/Montserrat-700.woff2';
@@ -8,22 +8,10 @@ import montserrat900 from './fonts/Montserrat-900.woff2';
 export const sans = 'Montserrat';
 export const script = 'Great Vibes';
 
-const faces = [
-  new FontFace(sans, `url(${montserrat500}) format('woff2')`, {weight: '500'}),
-  new FontFace(sans, `url(${montserrat700}) format('woff2')`, {weight: '700'}),
-  new FontFace(sans, `url(${montserrat900}) format('woff2')`, {weight: '900'}),
-  new FontFace(script, `url(${greatVibes}) format('woff2')`),
-];
-const handle = delayRender('Cargando fuentes');
-Promise.all(faces.map((f) => f.load()))
-  .then((loaded) => {
-    loaded.forEach((f) => document.fonts.add(f));
-    continueRender(handle);
-  })
-  .catch((err) => {
-    console.error(err);
-    continueRender(handle);
-  });
+loadFont({family: sans, url: montserrat500, weight: '500', format: 'woff2'});
+loadFont({family: sans, url: montserrat700, weight: '700', format: 'woff2'});
+loadFont({family: sans, url: montserrat900, weight: '900', format: 'woff2'});
+loadFont({family: script, url: greatVibes, format: 'woff2'});
 
 // Colores tomados de las tarjetas finales del video (AMOR / LEALTAD) y de la bandera.
 export const colors = {
