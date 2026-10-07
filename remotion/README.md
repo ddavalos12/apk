@@ -3,7 +3,7 @@
 Edición del video `../video/video_comprimido.mp4` con:
 
 - **Corrección de color**: más brillo, contraste y saturación en todas las fotos.
-- **Fondo realzado**: luz cálida en el centro del pergamino, bordes más profundos y tono azul/naranja de la marca.
+- **Fondo nuevo**: el pergamino original se reemplaza por un fondo azul profundo con luces suaves; cada foto lleva un marco claro y sombra para que resalte (`scripts/cambiar_fondo.py` genera `video/video_fondo_nuevo.mp4`).
 - **Título de apertura** animado "BUMAND – Álbum de fotos".
 - **Rótulos por sección** (¡Bienvenidos!, Nuestras reuniones, Familia BumanD, Momentos que unen, Rescatados, Compartiendo el mensaje, Juntos en el camino).
 - **Bandera de Bolivia animada** cuando la bandera aparece en las fotos.
@@ -33,6 +33,15 @@ npm run render
 ```
 
 El resultado queda en `remotion\out\bumand_editado.mp4`.
+
+## Volver a generar el fondo
+
+```powershell
+pip install opencv-python-headless numpy
+python scripts/cambiar_fondo.py ..\video\video_comprimido.mp4 ..\video\video_fondo_nuevo.mp4
+```
+
+Los colores del fondo están al inicio de `scripts/cambiar_fondo.py` (`center`, `edge`).
 
 ## Cambiar textos y tiempos
 

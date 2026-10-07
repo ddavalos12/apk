@@ -1,7 +1,7 @@
 import {AbsoluteFill, random, useCurrentFrame, useVideoConfig} from 'remotion';
 import {colors} from '../theme';
 
-const COUNT = 46;
+const COUNT = 22;
 
 // Partículas doradas flotando, en sintonía con los destellos del fondo original.
 export const Particles: React.FC = () => {
@@ -30,7 +30,7 @@ export const Particles: React.FC = () => {
               height: size,
               borderRadius: '50%',
               background: colors.gold,
-              opacity: 0.55 * twinkle,
+              opacity: 0.4 * twinkle,
               boxShadow: `0 0 ${size * 3}px ${size}px rgba(242,193,78,0.45)`,
             }}
           />

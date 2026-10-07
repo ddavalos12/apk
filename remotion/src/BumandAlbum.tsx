@@ -1,5 +1,4 @@
 import {AbsoluteFill, Sequence, useVideoConfig} from 'remotion';
-import {BackgroundEnhance} from './components/BackgroundEnhance';
 import {BrandBadge} from './components/BrandBadge';
 import {ChapterProgress} from './components/ChapterProgress';
 import {FlagBadge} from './components/FlagBadge';
@@ -19,7 +18,6 @@ export const BumandAlbum: React.FC = () => {
     <AbsoluteFill style={{backgroundColor: 'black'}}>
       <Sequence durationInFrames={f(SOURCE_DURATION)} name="Video con corrección de color">
         <GradedVideo />
-        <BackgroundEnhance />
         <Particles />
         <BrandBadge />
         <ChapterProgress />

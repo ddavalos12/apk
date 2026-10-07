@@ -1,10 +1,10 @@
 import {AbsoluteFill, Easing, interpolate, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {SOURCE_DURATION, VERTICAL_START} from '../timeline';
 
-const src = staticFile('video_comprimido.mp4');
+const src = staticFile('video_fondo_nuevo.mp4');
 
-// Corrección de color: más luz, contraste y color en las fotos.
-const GRADE = 'brightness(1.08) contrast(1.14) saturate(1.2)';
+// Corrección de color suave: el fondo ya viene reemplazado (ver scripts/cambiar_fondo.py).
+const GRADE = 'brightness(1.05) contrast(1.08) saturate(1.12)';
 
 // Ancho del contenido vertical (9:16) dentro del cuadro 1920x1080.
 const VERTICAL_WIDTH = 608;

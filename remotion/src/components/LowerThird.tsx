@@ -60,6 +60,8 @@ export const LowerThird: React.FC<Props> = ({index, title, subtitle}) => {
             background: 'linear-gradient(90deg, rgba(11,22,64,0.92), rgba(11,22,64,0.78))',
             padding: '16px 34px 14px 26px',
             borderRadius: '0 14px 14px 0',
+            border: '2px solid rgba(242,193,78,0.55)',
+            borderLeft: 'none',
             backdropFilter: 'blur(6px)',
             boxShadow: '0 14px 40px rgba(0,0,0,0.35)',
             clipPath: `inset(0 ${100 - reveal}% 0 0)`,
