@@ -1,8 +1,5 @@
 import {loadFont} from '@remotion/fonts';
-import greatVibes from './fonts/GreatVibes.woff2';
-import montserrat500 from './fonts/Montserrat-500.woff2';
-import montserrat700 from './fonts/Montserrat-700.woff2';
-import montserrat900 from './fonts/Montserrat-900.woff2';
+import {greatVibes, montserrat500, montserrat700, montserrat900} from './fontData';
 
 // Fuentes incluidas en el proyecto para que el render no dependa de internet.
 export const sans = 'Montserrat';
