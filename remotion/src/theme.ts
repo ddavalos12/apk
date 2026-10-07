@@ -1,4 +1,3 @@
-import {continueRender, delayRender} from 'remotion';
 import {greatVibes, montserrat500, montserrat700, montserrat900} from './fontData';
 
 // Fuentes embebidas en el proyecto para que el render no dependa de internet.
@@ -21,18 +20,6 @@ if (typeof document !== 'undefined') {
   const style = document.createElement('style');
   style.textContent = css;
   document.head.appendChild(style);
-
-  // Espera a que las fuentes estén listas, pero nunca más de 5 s para no bloquear el render.
-  const handle = delayRender('Cargando fuentes');
-  Promise.race([
-    Promise.all([
-      document.fonts.load(`500 20px '${sans}'`),
-      document.fonts.load(`700 20px '${sans}'`),
-      document.fonts.load(`900 20px '${sans}'`),
-      document.fonts.load(`20px '${script}'`),
-    ]),
-    new Promise((resolve) => setTimeout(resolve, 5000)),
-  ]).finally(() => continueRender(handle));
 }
 
 // Colores tomados de las tarjetas finales del video (AMOR / LEALTAD) y de la bandera.
