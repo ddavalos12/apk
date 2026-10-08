@@ -3,7 +3,7 @@
 Edición del video `../video/video_comprimido.mp4` con:
 
 - **Corrección de color**: más brillo, contraste y saturación en todas las fotos.
-- **Fondo nuevo**: el pergamino original se reemplaza por un fondo azul profundo con luces suaves; cada foto lleva un marco claro y sombra para que resalte (`scripts/cambiar_fondo.py` genera `video/video_fondo_nuevo.mp4`).
+- **Fondo nuevo**: el pergamino original se reemplaza por un fondo claro y neutro; cada foto lleva un marco blanco, sombra y un poco más de nitidez. También devuelve el verde a la bandera boliviana, que el filtro original había vuelto azul (`scripts/cambiar_fondo.py` genera `video/video_fondo_nuevo.mp4`).
 - **Título de apertura** animado "BUMAND – Álbum de fotos".
 - **Rótulos por sección** (¡Bienvenidos!, Nuestras reuniones, Familia BumanD, Momentos que unen, Rescatados, Compartiendo el mensaje, Juntos en el camino).
 - **Bandera de Bolivia animada** cuando la bandera aparece en las fotos.

@@ -18,7 +18,7 @@ export const ChapterProgress: React.FC = () => {
   return (
     <AbsoluteFill style={{pointerEvents: 'none', opacity}}>
       <div style={{position: 'absolute', left: 70, bottom: 30, width: WIDTH, height: 6}}>
-        <div style={{position: 'absolute', inset: 0, borderRadius: 3, background: 'rgba(255,255,255,0.25)'}} />
+        <div style={{position: 'absolute', inset: 0, borderRadius: 3, background: 'rgba(11,22,64,0.18)'}} />
         <div
           style={{
             position: 'absolute',

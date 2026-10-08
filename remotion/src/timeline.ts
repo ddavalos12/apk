@@ -31,6 +31,6 @@ export const chapters: Chapter[] = [
 
 // Momentos donde aparece la bandera de Bolivia en las fotos.
 export const flagMoments = [
-  {start: 88, end: 93},
+  {start: 88, end: 91.6},
   {start: 150.8, end: 154.6},
 ];

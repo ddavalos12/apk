@@ -7,7 +7,6 @@ import {IntroTitle} from './components/IntroTitle';
 import {LightSweep} from './components/LightSweep';
 import {LowerThird} from './components/LowerThird';
 import {Outro} from './components/Outro';
-import {Particles} from './components/Particles';
 import {chapters, flagMoments, OUTRO_DURATION, SOURCE_DURATION} from './timeline';
 
 export const BumandAlbum: React.FC = () => {
@@ -18,7 +17,6 @@ export const BumandAlbum: React.FC = () => {
     <AbsoluteFill style={{backgroundColor: 'black'}}>
       <Sequence durationInFrames={f(SOURCE_DURATION)} name="Video con corrección de color">
         <GradedVideo />
-        <Particles />
         <BrandBadge />
         <ChapterProgress />
       </Sequence>
