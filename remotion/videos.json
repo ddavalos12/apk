@@ -1,0 +1,4 @@
+[
+  {"archivo": "video-1.mp4", "titulo": "Vídeo 1", "subtitulo": "Generado en lote", "colorFondo": "#0f172a", "colorTexto": "#ffffff"},
+  {"archivo": "video-2.mp4", "titulo": "Vídeo 2", "subtitulo": "Otro texto, mismo diseño", "colorFondo": "#7c2d12", "colorTexto": "#fef3c7"}
+]
