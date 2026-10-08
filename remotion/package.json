@@ -9,7 +9,7 @@
     "render:props": "remotion render src/index.ts MiVideo out/video.mp4 --props=./props.json",
     "batch": "node scripts/render-batch.mjs",
     "upgrade": "remotion upgrade",
-    "render:cumple": "remotion render src/index.ts CumpleOscar out/cumple-oscar.mp4 --crf=23"
+    "render:album": "remotion render src/index.ts AlbumBumand out/album-bumand.mp4 --crf=23"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.534",

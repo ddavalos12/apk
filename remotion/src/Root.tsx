@@ -1,19 +1,19 @@
 import React from 'react';
 import {Composition} from 'remotion';
 import {MiVideo, miVideoSchema} from './MiVideo';
-import {FPS} from './cumple/datos';
-import {VideoCumple, duracionTotal} from './cumple/VideoCumple';
+import {FPS} from './album/datos';
+import {VideoAlbum, duracionTotal} from './album/VideoAlbum';
 
 export const RemotionRoot: React.FC = () => {
   return (
     <>
       <Composition
-        id="CumpleOscar"
-        component={VideoCumple}
+        id="AlbumBumand"
+        component={VideoAlbum}
         durationInFrames={duracionTotal(FPS)}
         fps={FPS}
-        width={1080}
-        height={1920}
+        width={1920}
+        height={1080}
       />
       <Composition
         id="MiVideo"
