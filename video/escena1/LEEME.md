@@ -27,4 +27,4 @@
 python3 editar_escena1.py
 ```
 
-Usa las fuentes de `../intro_sanson/assets/fonts`. Requiere Python 3 con `numpy` y `Pillow`, y `ffmpeg`.
+Usa `../comun_escenas.py` (banner, nivelación final y codificación) y las fuentes de `../intro_sanson/assets/fonts`. Requiere Python 3 con `numpy` y `Pillow`, y `ffmpeg`.
