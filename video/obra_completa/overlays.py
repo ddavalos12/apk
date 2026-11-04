@@ -649,7 +649,7 @@ class ImpactBurst(Overlay):
 
     def draw(self, buf, g):
         u = (g - self.t) / 0.5
-        if u < 0:
+        if u < 0 or u >= 1:
             return
         e = ease_out(u)
         R = self.R
