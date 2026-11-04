@@ -239,6 +239,74 @@ def write_audio(path, x):
     return path
 
 
+def voice_peak(x, a=None, b=None):
+    """Nivel de los picos de la voz: percentil 95 del nivel en ventanas de 50 ms (dB).
+    En tramos cortos con pausas es más fiable que el promedio."""
+    m = x.mean(1)
+    if a is not None:
+        m = m[int(a * SR):int(b * SR)]
+    win = int(0.05 * SR)
+    k = len(m) // win
+    r = np.sqrt((m[:k * win].reshape(k, win) ** 2).mean(1)) + 1e-9
+    return float(np.percentile(20 * np.log10(r), 95))
+
+
+def boost_regions(src, tmp, regions, offset_db=0.0, pad=0.3, ramp=0.06):
+    """Sube los tramos donde los niños hablan sin micrófono y nivela toda la escena.
+
+    regions: lista de (inicio, fin, ganancia máxima dB, reducción de ruido dB, nombre).
+    Cada tramo se limpia (voice_chain), se lleva a los picos de voz del resto de la
+    escena sin pasar su ganancia máxima, se le aplica una puerta de ruido suave y un
+    compresor, y se mezcla con fundidos cortos.  Al final: canales equilibrados,
+    corte de graves a 60 Hz, compresión suave para todo y -16 LUFS.
+    Devuelve la ruta del WAV final."""
+    raw = decode_audio(src, os.path.join(tmp, "raw.wav"))
+    x = read_audio(raw)
+    n = len(x)
+    t = np.arange(n) / SR
+    ref = voice_peak(x)                     # picos de la escena (la parte con buen volumen)
+
+    rms = np.sqrt((x ** 2).mean(0))         # equilibrio izquierda/derecha
+    x *= (np.sqrt(rms[0] * rms[1]) / rms)[None, :]
+
+    out = x.copy()
+    for a, b, gmax, nr, name in regions:
+        s0, s1 = max(0.0, a - pad), b + pad
+        seg_in = os.path.join(tmp, f"k_{a:.2f}_in.wav")
+        seg_cl = os.path.join(tmp, f"k_{a:.2f}_clean.wav")
+        write_audio(seg_in, x[int(s0 * SR):int(s1 * SR)])
+        run(["ffmpeg", "-v", "error", "-y", "-i", seg_in, "-af", voice_chain(nr), "-c:a", "pcm_f32le", seg_cl])
+        before = loudness(seg_in, a - s0, b - s0)
+        g = min(gmax, ref + offset_db - voice_peak(read_audio(seg_cl), a - s0, b - s0))
+        seg_g = os.path.join(tmp, f"k_{a:.2f}_gain.wav")
+        run(["ffmpeg", "-v", "error", "-y", "-i", seg_cl, "-af",
+             f"volume={g:.2f}dB,"
+             f"agate=threshold=0.01:ratio=2:range=0.2:attack=10:release=250,"
+             f"acompressor=threshold=-22dB:ratio=2.5:attack=6:release=180:knee=6",
+             "-c:a", "pcm_f32le", seg_g])
+        y = read_audio(seg_g)
+        # el compresor baja un poco los picos: se corrige (sin pasar la ganancia máxima)
+        fix = min(gmax - g, ref + offset_db - voice_peak(y, a - s0, b - s0))
+        y *= np.float32(10 ** (fix / 20))
+        g += fix
+        i0 = int(s0 * SR)
+        y = y[: n - i0]
+        tt = t[i0:i0 + len(y)]
+        w = np.clip(np.minimum((tt - a) / ramp, (b - tt) / ramp), 0, 1)
+        w = (0.5 - 0.5 * np.cos(np.pi * w))[:, None].astype(np.float32)
+        out[i0:i0 + len(y)] = out[i0:i0 + len(y)] * (1 - w) + y * w
+        print(f"  {name:26s} {before:6.1f} LUFS → +{g:.1f} dB")
+
+    mixed = write_audio(os.path.join(tmp, "mixed_pre.wav"), out)
+    mixed_hp = os.path.join(tmp, "mixed.wav")
+    run(["ffmpeg", "-v", "error", "-y", "-i", mixed, "-af", "highpass=f=60", "-c:a", "pcm_f32le", mixed_hp])
+    final = glue_and_normalize(mixed_hp, tmp)
+    print(f"  {'escena completa':26s} {loudness(raw):6.1f} → {loudness(final):6.1f} LUFS")
+    for a, b, _, _, name in regions:
+        print(f"  {name:26s} {loudness(raw, a, b):6.1f} → {loudness(final, a, b):6.1f} LUFS")
+    return final
+
+
 def glue_and_normalize(src, tmp):
     """Compresión suave + limitador para todo, y normalización a -16 LUFS (dos pasadas, lineal)."""
     glued = os.path.join(tmp, "glued.wav")
