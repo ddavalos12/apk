@@ -251,7 +251,7 @@ def voice_peak(x, a=None, b=None):
     return float(np.percentile(20 * np.log10(r), 95))
 
 
-def boost_regions(src, tmp, regions, offset_db=0.0, pad=0.3, ramp=0.06):
+def boost_regions(src, tmp, regions, offset_db=0.0, pad=0.3, ramp=0.06, sfx=None, duck=None):
     """Sube los tramos donde los niños hablan sin micrófono y nivela toda la escena.
 
     regions: lista de (inicio, fin, ganancia máxima dB, reducción de ruido dB, nombre[, filtro]).
@@ -260,6 +260,10 @@ def boost_regions(src, tmp, regions, offset_db=0.0, pad=0.3, ramp=0.06):
     escena sin pasar su ganancia máxima, se le aplica una puerta de ruido suave y un
     compresor, y se mezcla con fundidos cortos.  Al final: canales equilibrados,
     corte de graves a 60 Hz, compresión suave para todo y -16 LUFS.
+    sfx: efectos de sonido opcionales (arreglo (muestras, 2) a 48 kHz, alineado con
+    el video) que se suman después del corte de graves y antes de la nivelación.
+    duck: lista opcional de (inicio, fin, dB, fundido) para bajar el audio original
+    en ese tramo (por ejemplo, para que se oigan los efectos).
     Devuelve la ruta del WAV final."""
     raw = decode_audio(src, os.path.join(tmp, "raw.wav"))
     x = read_audio(raw)
@@ -300,9 +304,20 @@ def boost_regions(src, tmp, regions, offset_db=0.0, pad=0.3, ramp=0.06):
         out[i0:i0 + len(y)] = out[i0:i0 + len(y)] * (1 - w) + y * w
         print(f"  {name:26s} {before:6.1f} LUFS → +{g:.1f} dB")
 
+    for a, b, gdb, fade in (duck or []):
+        k = np.clip(np.minimum((t - a) / fade, (b + fade - t) / fade), 0, 1)
+        k = 0.5 - 0.5 * np.cos(np.pi * k)
+        out *= (1 + (10 ** (gdb / 20) - 1) * k).astype(np.float32)[:, None]
+        print(f"  {'audio original':26s} {gdb:+.0f} dB de {a:.1f} a {b:.1f} s")
+
     mixed = write_audio(os.path.join(tmp, "mixed_pre.wav"), out)
     mixed_hp = os.path.join(tmp, "mixed.wav")
     run(["ffmpeg", "-v", "error", "-y", "-i", mixed, "-af", "highpass=f=60", "-c:a", "pcm_f32le", mixed_hp])
+    if sfx is not None:
+        y = read_audio(mixed_hp)
+        k = min(len(y), len(sfx))
+        y[:k] += sfx[:k]
+        write_audio(mixed_hp, y)
     final = glue_and_normalize(mixed_hp, tmp)
     print(f"  {'escena completa':26s} {loudness(raw):6.1f} → {loudness(final):6.1f} LUFS")
     for reg in regions:
