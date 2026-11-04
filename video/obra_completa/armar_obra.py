@@ -348,16 +348,28 @@ def render(out=OUT):
     print("Listo:", out, f"({(time.time() - t_start) / 60:.1f} min)")
 
 
+def keyframe_at_or_after(src, t):
+    out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-skip_frame", "nokey",
+                          "-show_entries", "frame=pts_time", "-of", "csv=p=0",
+                          "-read_intervals", f"{max(0, t - 0.2):.3f}%{t + 4:.3f}", src],
+                         capture_output=True, text=True).stdout.split()
+    ks = [float(x.split(",")[0]) for x in out if x.split(",")[0]]
+    ks = [k for k in ks if k >= t - 0.02]
+    return min(ks) if ks else t
+
+
 def split_parts(src=OUT):
     """Una parte por escena (con -c copy, sin perder calidad), cada una < 100 MB."""
-    names = {"intro": "0_intro", "e1": "1_la_revelacion", "e2": "2_la_quijada_de_asno",
-             "e3": "3_la_oferta_de_los_filisteos", "e4": "4_el_secreto_de_sanson", "e5": "5_el_templo_de_dagon"}
-    keys = [k for k, *_ in SEGMENTS if k != "extra"]
-    starts = [G0[k] for k in keys] + [T_OUTRO + OUTRO]
+    # la escena 5 se parte en dos (a los 52 s, antes de la oración) para quedar < 100 MB
+    cuts = [("0_intro", G0["intro"]), ("1_la_revelacion", G0["e1"]), ("2_la_quijada_de_asno", G0["e2"]),
+            ("3_la_oferta_de_los_filisteos", G0["e3"]), ("4_el_secreto_de_sanson", G0["e4"]),
+            ("5a_el_templo_de_dagon", G0["e5"]), ("5b_el_templo_de_dagon_derrumbe", L("e5", 52.0))]
+    cuts = [(name, keyframe_at_or_after(src, t)) for name, t in cuts]   # cortar justo en un cuadro clave
+    ends = [c[1] for c in cuts[1:]] + [T_OUTRO + OUTRO]
     folder = os.path.join(BASE, "partes")
     os.makedirs(folder, exist_ok=True)
-    for k, a, b in zip(keys, starts[:-1], starts[1:]):
-        p = os.path.join(folder, f"parte_{names[k]}.mp4")
+    for (name, a), b in zip(cuts, ends):
+        p = os.path.join(folder, f"parte_{name}.mp4")
         C.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{a:.3f}", "-to", f"{b:.3f}", "-i", src,
                "-c", "copy", "-movflags", "+faststart", p])
         print("  ", p)

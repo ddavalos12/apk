@@ -2,8 +2,20 @@
 
 Intro + escenas 1 a 5 en un solo video, en Full HD (1920x1080, 30 fps), con overlays animados según lo que pasa en cada escena.
 
-- Video completo: `sanson_y_dalila_obra_completa.mp4` (≈7 min 33 s). Pesa más de 100 MB, que es el límite de GitHub, así que **no está en el repositorio**: se entregó directamente en el chat.
-- En el repositorio están las **partes por escena** (`partes/`), cortadas del video completo sin volver a codificar, así que tienen la misma calidad.
+- Video completo: `sanson_y_dalila_obra_completa.mp4` (7 min 32 s, H.264 ≈6 Mbps + AAC 256 kbps, 341 MB). Pesa más de 100 MB, que es el límite de GitHub, así que **no está en el repositorio**: se entregó directamente en el chat.
+- En el repositorio están las **partes** (`partes/`), cortadas del video completo sin volver a codificar (misma calidad), cada una empieza en un cuadro clave:
+
+| Parte | Duración | Tamaño |
+|---|---|---|
+| `parte_0_intro.mp4` | 1:00 | 26 MB |
+| `parte_1_la_revelacion.mp4` | 1:16 | 39 MB |
+| `parte_2_la_quijada_de_asno.mp4` (incluye el clip extra) | 1:00 | 46 MB |
+| `parte_3_la_oferta_de_los_filisteos.mp4` | 1:05 | 46 MB |
+| `parte_4_el_secreto_de_sanson.mp4` | 1:21 | 72 MB |
+| `parte_5a_el_templo_de_dagon.mp4` | 0:53 | 47 MB |
+| `parte_5b_el_templo_de_dagon_derrumbe.mp4` (oración, derrumbe y "Fin") | 0:58 | 54 MB |
+
+La escena 5 va en dos partes porque entera pasaba de los 100 MB.
 
 ## De dónde sale cada parte
 
@@ -43,7 +55,7 @@ Entre escenas hay un fundido corto a negro. Los tiempos y posiciones de cada ove
 python3 armar_obra.py
 ```
 
-Tarda unos 15–20 minutos. Genera el video completo y luego las partes. Para ver cuadros de prueba en ciertos segundos:
+Tarda unos 11 minutos. Genera el video completo y luego las partes. Para ver cuadros de prueba en ciertos segundos:
 
 ```bash
 python3 armar_obra.py --preview /ruta/carpeta 105.5 155.5
