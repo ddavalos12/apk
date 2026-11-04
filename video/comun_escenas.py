@@ -254,7 +254,8 @@ def voice_peak(x, a=None, b=None):
 def boost_regions(src, tmp, regions, offset_db=0.0, pad=0.3, ramp=0.06):
     """Sube los tramos donde los niños hablan sin micrófono y nivela toda la escena.
 
-    regions: lista de (inicio, fin, ganancia máxima dB, reducción de ruido dB, nombre).
+    regions: lista de (inicio, fin, ganancia máxima dB, reducción de ruido dB, nombre[, filtro]).
+    El filtro opcional reemplaza a voice_chain(nr), por ejemplo para un tramo con música.
     Cada tramo se limpia (voice_chain), se lleva a los picos de voz del resto de la
     escena sin pasar su ganancia máxima, se le aplica una puerta de ruido suave y un
     compresor, y se mezcla con fundidos cortos.  Al final: canales equilibrados,
@@ -270,12 +271,14 @@ def boost_regions(src, tmp, regions, offset_db=0.0, pad=0.3, ramp=0.06):
     x *= (np.sqrt(rms[0] * rms[1]) / rms)[None, :]
 
     out = x.copy()
-    for a, b, gmax, nr, name in regions:
+    for reg in regions:
+        a, b, gmax, nr, name = reg[:5]
+        chain = reg[5] if len(reg) > 5 else voice_chain(nr)
         s0, s1 = max(0.0, a - pad), b + pad
         seg_in = os.path.join(tmp, f"k_{a:.2f}_in.wav")
         seg_cl = os.path.join(tmp, f"k_{a:.2f}_clean.wav")
         write_audio(seg_in, x[int(s0 * SR):int(s1 * SR)])
-        run(["ffmpeg", "-v", "error", "-y", "-i", seg_in, "-af", voice_chain(nr), "-c:a", "pcm_f32le", seg_cl])
+        run(["ffmpeg", "-v", "error", "-y", "-i", seg_in, "-af", chain, "-c:a", "pcm_f32le", seg_cl])
         before = loudness(seg_in, a - s0, b - s0)
         g = min(gmax, ref + offset_db - voice_peak(read_audio(seg_cl), a - s0, b - s0))
         seg_g = os.path.join(tmp, f"k_{a:.2f}_gain.wav")
@@ -302,7 +305,8 @@ def boost_regions(src, tmp, regions, offset_db=0.0, pad=0.3, ramp=0.06):
     run(["ffmpeg", "-v", "error", "-y", "-i", mixed, "-af", "highpass=f=60", "-c:a", "pcm_f32le", mixed_hp])
     final = glue_and_normalize(mixed_hp, tmp)
     print(f"  {'escena completa':26s} {loudness(raw):6.1f} → {loudness(final):6.1f} LUFS")
-    for a, b, _, _, name in regions:
+    for reg in regions:
+        a, b, name = reg[0], reg[1], reg[4]
         print(f"  {name:26s} {loudness(raw, a, b):6.1f} → {loudness(final, a, b):6.1f} LUFS")
     return final
 
@@ -334,14 +338,16 @@ VIDEO_FILTER = ("hqdn3d=1.5:1.2:4:3,"                       # quita ruido y bloq
                 "format=yuv420p")
 
 
-def encode(src, banner_dir, banner_start, banner_x, banner_y, wav, out, fps):
+def encode(src, banner_dir, banner_start, banner_x, banner_y, wav, out, fps, crf=17):
+    """crf: calidad de x264 (17 = casi sin pérdida; 19-20 para videos largos, así el
+    archivo queda por debajo de los 100 MB que acepta GitHub)."""
     fc = (f"[0:v]{VIDEO_FILTER}[v0];"
           f"[1:v]format=rgba,setpts=PTS+{banner_start}/TB[bn];"
           f"[v0][bn]overlay=x={banner_x}:y={banner_y}:eof_action=pass:format=auto,format=yuv420p[v]")
     run(["ffmpeg", "-v", "error", "-y", "-i", src,
          "-framerate", str(fps), "-i", os.path.join(banner_dir, "b_%04d.png"),
          "-i", wav, "-filter_complex", fc, "-map", "[v]", "-map", "2:a",
-         "-c:v", "libx264", "-preset", "slow", "-crf", "17", "-tune", "film",
+         "-c:v", "libx264", "-preset", "slow", "-crf", str(crf), "-tune", "film",
          "-profile:v", "high", "-level", "4.1", "-r", str(fps),
          "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
          "-c:a", "aac", "-b:a", "256k", "-ar", str(SR),
