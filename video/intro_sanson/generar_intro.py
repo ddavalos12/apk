@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-Intro horizontal (1920x1080, 30 fps, ~59 s) - "Sansón y Dalila"
+Intro horizontal (1920x1080, 30 fps, 60 s) - "Sansón y Dalila"
 Escuela Dominical - Iglesia Evangélica Metodista "Monte de Horeb"
 
 Genera:
-  - música original sintetizada (sin derechos de autor)
   - animación con efecto Ken Burns, textos, partículas y transiciones
+  - el audio: la canción "Con Fuerza de Dios" editada a 60 s, con los cortes
+    en compases enteros y los golpes de la música sincronizados con las escenas
 y lo une todo en un MP4 compatible con el video principal (H.264 + AAC 44.1 kHz).
 
 Uso:
@@ -28,28 +29,45 @@ FONTS = os.path.join(BASE, "assets", "fonts")
 
 W, H = 1920, 1080
 FPS = 30
-DURATION = 59.0
+DURATION = 60.0
 NFRAMES = int(round(DURATION * FPS))
 SR = 44100
 
 # ----------------------------------------------------------------------------
-# Línea de tiempo (segundos).  Cada escena se cruza 0.8 s con la siguiente.
+# Pulso de la canción: 143 BPM, primer golpe en 0.148 s, compases de 4 tiempos.
+# ----------------------------------------------------------------------------
+BPM = 143.0
+BEAT = 60.0 / BPM
+BAR = 4 * BEAT
+PHASE = 0.148
+
+
+def bar(k):
+    """Segundo del video en que empieza el compás k."""
+    return PHASE + k * BAR
+
+
+# ----------------------------------------------------------------------------
+# Línea de tiempo (segundos).  Cada escena se cruza 0.8 s con la siguiente y el
+# punto medio de cada cruce cae justo en el primer tiempo de un compás.
 # ----------------------------------------------------------------------------
 SCENES = [
-    ("iglesia",   0.0,  6.4),
-    ("escuela",   5.6, 11.4),
-    ("titulo",   10.6, 17.4),
-    ("nazareo",  16.6, 22.4),
-    ("dalila",   21.6, 27.4),
-    ("insistio", 26.6, 32.4),
-    ("versiculo", 31.6, 43.4),
-    ("rapado",   42.6, 48.4),
-    ("clamo",    47.6, 53.9),
-    ("cierre",   53.1, DURATION),
+    ("iglesia",   0.0,            bar(4) + 0.4),
+    ("escuela",   bar(4) - 0.4,   bar(7) + 0.4),    # golpe de la intro
+    ("titulo",    bar(7) - 0.4,   bar(10) + 0.4),   # golpe de la intro
+    ("nazareo",   bar(10) - 0.4,  bar(13) + 0.4),
+    ("dalila",    bar(13) - 0.4,  bar(16) + 0.4),
+    ("insistio",  bar(16) - 0.4,  bar(19) + 0.4),   # entra toda la banda
+    ("versiculo", bar(19) - 0.4,  bar(26) + 0.4),
+    ("rapado",    bar(26) - 0.4,  bar(29) + 0.4),
+    ("clamo",     bar(29) - 0.4,  bar(33) + 0.4),   # coro final + póster
+    ("cierre",    bar(33) - 0.4,  DURATION),
 ]
-T_TITLE_HIT = 12.6     # aparece "y Dalila"
-T_CLAMO_HIT = 48.0     # vuelve la fuerza
-T_CIERRE = 53.1
+T_TITLE_HIT = bar(8)               # empieza la subida de la canción: aparece "y Dalila"
+T_SIN_BAJO = PHASE + 109 * BEAT    # la música se queda sin bajo: "su fuerza se apartó de él"
+T_CLAMO_HIT = bar(29)              # entra el coro final: aparece el póster
+T_CIERRE = bar(33) - 0.4
+T_FINAL_HIT = bar(34)              # golpe final de la canción
 
 # ----------------------------------------------------------------------------
 # Utilidades
@@ -83,6 +101,7 @@ F_CAPS_BOLD = "Cinzel-ExtraBold.ttf"
 F_SERIF = "Cormorant-SemiBold.ttf"
 F_ITALIC = "Cormorant-SemiBoldItalic.ttf"
 F_ITALIC_M = "Cormorant-MediumItalic.ttf"
+TEXT_CX, POSTER_CX = 610, 1420   # escena del clamor: texto a la izquierda, póster a la derecha
 
 GOLD_TOP = (255, 236, 176)
 GOLD_BOT = (205, 148, 52)
@@ -173,6 +192,15 @@ def to_layer(im):
     a = np.asarray(im.convert("RGBA")).astype(np.float32) / 255.0
     rgb = a[..., :3] * a[..., 3:4]
     return rgb, a[..., 3:4]
+
+
+def add_glow(frame, glow, x, y, k):
+    """Suma luz (mezcla aditiva) en la posición dada."""
+    gh, gw = glow.shape[:2]
+    x, y = int(round(x)), int(round(y))
+    x0, y0, x1, y1 = max(0, x), max(0, y), min(W, x + gw), min(H, y + gh)
+    if x0 < x1 and y0 < y1:
+        frame[y0:y1, x0:x1] += glow[y0 - y:y1 - y, x0 - x:x1 - x] * k
 
 
 def blend(frame, layer, x, y, opacity=1.0, scale=None):
@@ -417,6 +445,12 @@ class Assets:
         self.photo_escuela = framed_photo(self.escuela, 900)
         self.photo_puerta = framed_photo(self.puerta, 900)
         self.letras_layer = feathered(self.letras_crop, (1560, 507), feather=70)
+        self.poster = framed_photo(load("6_poster_sanson.jpg", warmth=0.15, contrast=1.02, sat=1.0), 920)
+        ph, pw = self.poster[1].shape[:2]
+        halo = Image.new("L", (pw + 160, ph + 160), 0)
+        ImageDraw.Draw(halo).rounded_rectangle((140, 140, pw + 20, ph + 20), 40, fill=255)
+        halo = np.asarray(halo.filter(ImageFilter.GaussianBlur(55))).astype(np.float32)[..., None] / 255.0
+        self.poster_halo = halo * np.array([1.0, 0.78, 0.38], np.float32) * 0.75
 
         # rayos de luz (precálculo del ángulo)
         yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
@@ -439,11 +473,11 @@ class Assets:
         ]
         e0, e1 = S["escuela"]
         self.t_escuela = [
-            Txt(text_layer([("ESCUELA DOMINICAL", F_CAPS, 60, 6, G)], glow=0.2), 1265, 395, e0 + 0.9, e1),
-            Txt(ornament(460), 1265, 470, e0 + 1.3, e1, rise=0),
-            Txt(text_layer([("presenta", F_ITALIC, 104, 0, CREAM)]), 1265, 560, e0 + 1.6, e1),
+            Txt(text_layer([("ESCUELA DOMINICAL", F_CAPS, 60, 6, G)], glow=0.2), 1265, 395, e0 + 0.8, e1),
+            Txt(ornament(460), 1265, 470, e0 + 1.1, e1, rise=0),
+            Txt(text_layer([("presenta", F_ITALIC, 104, 0, CREAM)]), 1265, 560, e0 + 1.4, e1),
             Txt(text_layer([("una historia de fe, fuerza", F_SERIF, 50, 0, CREAM),
-                            ("y obediencia a Dios", F_SERIF, 50, 0, CREAM)]), 1265, 710, e0 + 2.2, e1),
+                            ("y obediencia a Dios", F_SERIF, 50, 0, CREAM)]), 1265, 710, e0 + 1.9, e1),
         ]
         c0, c1 = S["titulo"]
         self.t_titulo = [
@@ -462,11 +496,11 @@ class Assets:
         self.t_dalila = [
             Txt(text_layer([("Pero Sansón amó", F_ITALIC, 82, 0, CREAM),
                             ("a una mujer llamada", F_ITALIC, 82, 0, CREAM),
-                            ("Dalila", F_ITALIC, 120, 0, G)], align="center", glow=0.2), 640, 430, d0 + 0.9, d1),
+                            ("Dalila", F_ITALIC, 120, 0, G)], align="center", glow=0.2), 640, 430, d0 + 0.7, d1),
             Txt(text_layer([("Los filisteos le ofrecieron plata", F_SERIF, 46, 0, (238, 228, 205)),
                             ("por el secreto de su fuerza.", F_SERIF, 46, 0, (238, 228, 205))]),
-                640, 770, d0 + 1.7, d1),
-            Txt(text_layer([("JUECES 16:4-5", F_CAPS, 30, 8, (232, 210, 165))]), 640, 905, d0 + 2.1, d1),
+                640, 770, d0 + 1.4, d1),
+            Txt(text_layer([("JUECES 16:4-5", F_CAPS, 30, 8, (232, 210, 165))]), 640, 905, d0 + 1.8, d1),
         ]
         i0, i1 = S["insistio"]
         self.t_insistio = [
@@ -495,24 +529,27 @@ class Assets:
         r0, r1 = S["rapado"]
         self.t_rapado = [
             Txt(text_layer([("Mientras dormía, le raparon", F_ITALIC, 76, 0, CREAM),
-                            ("las siete guedejas de su cabeza…", F_ITALIC, 76, 0, CREAM)], scrim=0.35), W / 2, 690, r0 + 0.9, r1),
+                            ("las siete guedejas de su cabeza…", F_ITALIC, 76, 0, CREAM)], scrim=0.35), W / 2, 690, r0 + 0.8, r1),
             Txt(text_layer([("y su fuerza se apartó de él.", F_ITALIC, 84, 0, (210, 214, 222))]),
-                W / 2, 875, r0 + 2.2, r1),
-            Txt(text_layer([("JUECES 16:19", F_CAPS, 30, 8, (205, 205, 210))]), W / 2, 1000, r0 + 2.8, r1),
+                W / 2, 875, T_SIN_BAJO, r1),
+            Txt(text_layer([("JUECES 16:19", F_CAPS, 30, 8, (205, 205, 210))]), W / 2, 1000, T_SIN_BAJO + 0.6, r1),
         ]
         k0, k1 = S["clamo"]
         self.t_clamo = [
-            Txt(text_layer([("Pero clamó a Jehová:", F_ITALIC, 74, 0, CREAM)], scrim=0.6), W / 2, 600, k0 + 0.5, k1),
-            Txt(text_layer([("«Acuérdate ahora de mí, y fortaléceme,", F_ITALIC, 76, 0, G),
-                            ("te ruego, solamente esta vez»", F_ITALIC, 76, 0, G)], glow=0.3, scrim=0.62), W / 2, 790, k0 + 1.2, k1),
-            Txt(text_layer([("JUECES 16:28", F_CAPS, 30, 8, (236, 214, 170))], scrim=0.5), W / 2, 975, k0 + 1.9, k1),
+            Txt(text_layer([("Pero clamó a Jehová:", F_ITALIC, 72, 0, CREAM)], scrim=0.6), TEXT_CX, 300, k0 + 0.7, k1),
+            Txt(text_layer([("«Acuérdate ahora de mí,", F_ITALIC, 78, 0, G),
+                            ("y fortaléceme, te ruego,", F_ITALIC, 78, 0, G),
+                            ("solamente esta vez»", F_ITALIC, 78, 0, G)], glow=0.3, scrim=0.62), TEXT_CX, 510, k0 + 1.2, k1),
+            Txt(text_layer([("JUECES 16:28", F_CAPS, 30, 8, (236, 214, 170))], scrim=0.5), TEXT_CX, 705, k0 + 1.8, k1),
+            Txt(text_layer([("…y Dios le dio fuerzas", F_ITALIC, 64, 0, CREAM),
+                            ("una vez más.", F_ITALIC, 64, 0, CREAM)], scrim=0.6), TEXT_CX, 850, k0 + 3.2, k1),
         ]
         f0, f1 = S["cierre"]
         self.t_cierre = [
-            Txt(text_layer([("Nuestra fuerza viene de Dios", F_ITALIC, 118, 0, G)], glow=0.35, scrim=0.55), W / 2, 760, f0 + 1.0, f1 + 5),
-            Txt(ornament(520), W / 2, 862, f0 + 1.8, f1 + 5, rise=0),
-            Txt(text_layer([("ESCUELA DOMINICAL · MONTE DE HOREB", F_CAPS, 40, 7, CREAM)]), W / 2, 935, f0 + 2.2, f1 + 5),
-            Txt(text_layer([("IGLESIA EVANGÉLICA METODISTA", F_CAPS, 28, 7, (232, 214, 178))]), W / 2, 1000, f0 + 2.7, f1 + 5),
+            Txt(text_layer([("Nuestra fuerza viene de Dios", F_ITALIC, 118, 0, G)], glow=0.35, scrim=0.55), W / 2, 760, f0 + 0.8, f1 + 5),
+            Txt(ornament(520), W / 2, 862, f0 + 1.2, f1 + 5, rise=0),
+            Txt(text_layer([("ESCUELA DOMINICAL · MONTE DE HOREB", F_CAPS, 40, 7, CREAM)]), W / 2, 935, f0 + 1.5, f1 + 5),
+            Txt(text_layer([("IGLESIA EVANGÉLICA METODISTA", F_CAPS, 28, 7, (232, 214, 178))]), W / 2, 1000, f0 + 1.9, f1 + 5),
         ]
 
     # ---------------------------------------------------------------- render
@@ -593,7 +630,7 @@ class Assets:
     def s_rapado(self, t, u):
         f = kenburns(self.letras, u, (640, 281, 990), (640, 262, 840))
         # la fuerza se va: el color se apaga y la imagen se oscurece
-        k = smooth((u - 0.05) / 0.6)
+        k = smooth((t - (T_SIN_BAJO - 1.2)) / 2.2)
         gray = f @ np.array([0.299, 0.587, 0.114], np.float32)
         gray = gray[..., None] * np.array([0.92, 0.95, 1.02], np.float32)
         f = f * (1 - k) + gray * k
@@ -606,14 +643,26 @@ class Assets:
     def s_clamo(self, t, u):
         f = kenburns(self.escenario_rays, u, (640, 360, 1280), (640, 340, 1080))
         f *= self.dark_mid
-        f *= 0.8
+        f *= 0.72
         lt = t - T_CLAMO_HIT
         if lt > -0.2:
             grow = smooth((lt + 0.2) / 2.5)
             rays = (0.5 + 0.5 * np.cos(self.ray_ang * 22 + t * 0.35)) ** 6
             rays = rays * self.ray_fall * (0.35 + 0.25 * grow)
             f += rays[..., None] * np.array([1.0, 0.82, 0.45], np.float32) * (0.35 + 0.4 * grow)
-            fl = math.exp(-max(lt, 0) / 0.4) * 0.5 * smooth((lt + 0.2) / 0.2)
+        # póster: entra con el golpe del coro, con un halo dorado que late al compás
+        op = ease_out((lt + 0.05) / 0.5)
+        if op > 0:
+            ph, pw = self.poster[1].shape[:2]
+            px = POSTER_CX - pw / 2
+            py = H / 2 - ph / 2 + (1 - op) * 60 - 12 * u
+            beat_ph = ((t - PHASE) / BEAT) % 2.0
+            pulse = 0.7 + 0.3 * math.exp(-beat_ph * 1.6)
+            hh, hw = self.poster_halo.shape[:2]
+            add_glow(f, self.poster_halo, px + pw / 2 - hw / 2, py + ph / 2 - hh / 2, op * pulse)
+            blend(f, self.poster, px, py, op)
+        if lt > -0.2:
+            fl = math.exp(-max(lt, 0) / 0.4) * 0.55 * smooth((lt + 0.2) / 0.2)
             f += fl * np.array([1.0, 0.88, 0.6], np.float32) * self.ray_fall[..., None]
         for x in self.t_clamo:
             x.draw(f, t)
@@ -625,6 +674,10 @@ class Assets:
         f *= gradient_like_bottom(self)
         for x in self.t_cierre:
             x.draw(f, t)
+        lt = t - T_FINAL_HIT  # destello con el golpe final de la canción
+        if lt > -0.05:
+            fl = math.exp(-max(lt, 0) / 0.5) * 0.3
+            f += fl * np.array([1.0, 0.86, 0.55], np.float32) * self.ray_fall[..., None]
         return f
 
 
@@ -639,9 +692,9 @@ _A = None
 
 
 def particle_intensity(t):
-    if 42.6 <= t < 47.6:
+    if SCENES_D["rapado"][0] <= t < SCENES_D["clamo"][0]:
         return 0.25
-    if 47.6 <= t < 53.9:
+    if SCENES_D["clamo"][0] <= t < SCENES_D["clamo"][1]:
         return 1.3
     return 0.85
 
@@ -671,112 +724,58 @@ def _init():
 
 
 # ----------------------------------------------------------------------------
-# Música original (síntesis)
+# Audio: "Con Fuerza de Dios - Alabanza de Sansón" editada a la duración del video
 # ----------------------------------------------------------------------------
-
-def midi(m):
-    return 440.0 * 2 ** ((m - 69) / 12)
-
-
-CH = {
-    "Dm": [50, 57, 62, 65, 69], "Bb": [46, 53, 58, 62, 65], "Gm": [43, 50, 55, 58, 62],
-    "F": [41, 48, 53, 57, 60], "C": [48, 55, 60, 64, 67], "A": [45, 52, 57, 61, 64],
-    "D": [50, 57, 62, 66, 69],
-}
-ROOT = {"Dm": 38, "Bb": 34, "Gm": 31, "F": 29, "C": 36, "A": 33, "D": 38}
-
-# (inicio, fin, acorde, nivel, brillo)
-PROG = [
-    (0.0, 6.0, "Dm", 0.55, 2.2), (5.6, 11.0, "Bb", 0.6, 2.5), (10.6, 12.9, "Gm", 0.7, 3.0),
-    (12.5, 17.0, "Dm", 0.9, 4.0), (16.6, 22.0, "Bb", 0.75, 3.2), (21.6, 27.0, "F", 0.75, 3.2),
-    (26.6, 29.9, "C", 0.8, 3.6), (29.5, 32.3, "A", 0.85, 3.8), (31.9, 37.9, "Dm", 0.65, 2.6),
-    (37.5, 43.0, "Bb", 0.65, 2.6), (42.6, 45.9, "Gm", 0.42, 1.4), (45.5, 48.2, "A", 0.5, 1.6),
-    (47.8, 50.9, "Bb", 1.0, 4.5), (50.5, 53.4, "C", 1.0, 4.8), (53.0, 55.9, "F", 0.95, 4.2),
-    (55.5, 60.0, "D", 0.9, 4.0),
+SONG = os.path.join(BASE, "assets", "audio", "con_fuerza_de_dios.mp3")
+# Cada tramo: (segundo del video donde empieza, compases que salta en la canción,
+# duración del fundido).  Como el salto es un número entero de compases, el pulso
+# sigue igual y el corte no se nota.  Los cortes caen en pausas de la voz.
+AUDIO_EDITS = [
+    (0.0,   0,  0.0),    # intro con golpes + primera estrofa (canción 0:00-0:44)
+    (44.38, 65, 0.20),   # pausa sin bajo y coro final (canción 2:33-2:44)
+    (55.27, 89, 0.12),   # nota larga y golpe final de la canción (canción 3:24-3:29)
 ]
+TARGET_LUFS = -16.0
 
 
-def env_seg(n, a, r):
-    e = np.ones(n, np.float32)
-    na, nr = int(a * SR), int(r * SR)
-    if na:
-        e[:na] = np.sin(np.linspace(0, np.pi / 2, na)) ** 2
-    if nr:
-        e[-nr:] *= np.cos(np.linspace(0, np.pi / 2, nr)) ** 2
-    return e
+def read_song(path):
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-f", "f32le", "-ac", "2", "-ar", str(SR), "-"],
+                         capture_output=True, check=True).stdout
+    return np.frombuffer(raw, np.float32).reshape(-1, 2)
 
 
-def pad_voice(freq, n, bright, rng):
-    t = np.arange(n, dtype=np.float32) / SR
+def build_audio(path):
+    song = read_song(SONG)
+    n = int(round(DURATION * SR))
+    t = np.arange(n) / SR
     out = np.zeros((n, 2), np.float32)
-    for det, pan in ((-6, 0.15), (0, 0.5), (6, 0.85)):
-        f = freq * 2 ** (det / 1200)
-        vib = 1 + 0.0025 * np.sin(2 * np.pi * (4.8 + rng.uniform(-0.5, 0.5)) * t + rng.uniform(0, 6.28))
-        phase = 2 * np.pi * np.cumsum(f * vib) / SR
-        sig = np.zeros(n, np.float32)
-        for k in range(1, 14):
-            if f * k > 9000:
-                break
-            sig += np.sin(k * phase + rng.uniform(0, 6.28)) * (1 / k) * math.exp(-(k - 1) / bright)
-        lfo = 0.8 + 0.2 * np.sin(2 * np.pi * rng.uniform(0.08, 0.25) * t + rng.uniform(0, 6.28))
-        sig *= lfo
-        out[:, 0] += sig * math.cos(pan * math.pi / 2)
-        out[:, 1] += sig * math.sin(pan * math.pi / 2)
-    return out
-
-
-def drum(n_total, t0, pitch=70.0, decay=0.45, amp=1.0, noise=0.25, rng=None):
-    out = np.zeros(n_total, np.float32)
-    i0 = int(t0 * SR)
-    n = int((decay * 6) * SR)
-    n = min(n, n_total - i0)
-    if n <= 0:
-        return out
-    t = np.arange(n, dtype=np.float32) / SR
-    f = pitch * (1 + 1.2 * np.exp(-t / 0.035))
-    ph = 2 * np.pi * np.cumsum(f) / SR
-    body = np.sin(ph) * np.exp(-t / decay)
-    nz = rng.standard_normal(n).astype(np.float32)
-    # ruido suavizado (pasa-bajos simple por media móvil)
-    k = 24
-    nz = np.convolve(nz, np.ones(k) / k, mode="same")
-    nz *= np.exp(-t / 0.06) * noise * 3
-    out[i0:i0 + n] = (body + nz) * amp
-    return out
-
-
-def bell(n_total, t0, freq, amp=0.2, decay=3.0):
-    out = np.zeros(n_total, np.float32)
-    i0 = int(t0 * SR)
-    n = min(int(decay * 5 * SR), n_total - i0)
-    t = np.arange(n, dtype=np.float32) / SR
-    s = np.zeros(n, np.float32)
-    for ratio, a, d in ((1, 1, 1), (2.0, 0.35, 0.6), (2.76, 0.25, 0.45), (5.4, 0.1, 0.25)):
-        s += a * np.sin(2 * np.pi * freq * ratio * t) * np.exp(-t / (decay * d))
-    s *= np.minimum(1, t / 0.004)
-    out[i0:i0 + n] = s * amp
-    return out
-
-
-def riser(n_total, t0, t1, amp, rng):
-    out = np.zeros(n_total, np.float32)
-    i0, i1 = int(t0 * SR), int(t1 * SR)
-    n = i1 - i0
-    nz = rng.standard_normal(n).astype(np.float32)
-    x = np.linspace(0, 1, n, dtype=np.float32)
-    # filtrado progresivo: mezcla de ruido suave y ruido brillante
-    dark = np.convolve(nz, np.ones(60) / 60, mode="same") * 6
-    mid = np.convolve(nz, np.ones(10) / 10, mode="same") * 2
-    s = dark * (1 - x) + mid * x
-    out[i0:i1] = s * (x ** 2.2) * amp
-    return out
-
-
-def fft_convolve(x, h):
-    n = len(x) + len(h) - 1
-    nfft = 1 << (n - 1).bit_length()
-    y = np.fft.irfft(np.fft.rfft(x, nfft) * np.fft.rfft(h, nfft), nfft)[:len(x)]
-    return y.astype(np.float32)
+    for j, (s0, bars, fade_in) in enumerate(AUDIO_EDITS):
+        if j + 1 < len(AUDIO_EDITS):
+            s1, fade_out = AUDIO_EDITS[j + 1][0], AUDIO_EDITS[j + 1][2]
+        else:
+            s1, fade_out = DURATION + 1.0, 0.0
+        if fade_in > 0:   # fundido de potencia constante
+            g = np.sin(np.pi / 2 * np.clip((t - (s0 - fade_in / 2)) / fade_in, 0, 1))
+        else:
+            g = (t >= s0).astype(np.float64)
+        if fade_out > 0:
+            g = g * np.cos(np.pi / 2 * np.clip((t - (s1 - fade_out / 2)) / fade_out, 0, 1))
+        idx = np.arange(n) + int(round(bars * BAR * SR))
+        ok = (g > 0) & (idx < len(song))
+        out[ok] += song[idx[ok]] * g[ok, None].astype(np.float32)
+    # micro-fundido inicial y cola final
+    out[: int(0.005 * SR)] *= np.linspace(0, 1, int(0.005 * SR), dtype=np.float32)[:, None]
+    tail = (1 - np.clip((t - (DURATION - 1.2)) / 1.2, 0, 1)).astype(np.float32)
+    out *= tail[:, None]
+    peak = np.max(np.abs(out))
+    if peak > 0.97:
+        out *= 0.97 / peak
+    pcm = (np.clip(out, -1, 1) * 32767).astype(np.int16)
+    with wave.open(path, "wb") as wf:
+        wf.setnchannels(2)
+        wf.setsampwidth(2)
+        wf.setframerate(SR)
+        wf.writeframes(pcm.tobytes())
 
 
 def measure_lufs(path):
@@ -786,113 +785,15 @@ def measure_lufs(path):
     return float(vals[-1])
 
 
-TARGET_LUFS = -16.0
-
-
-def build_music(path):
-    rng = np.random.default_rng(2026)
-    N = int(DURATION * SR)
-    pad = np.zeros((N, 2), np.float32)
-    bass = np.zeros(N, np.float32)
-    for j, (a, b, ch, lvl, br) in enumerate(PROG):
-        i0, i1 = int(a * SR), min(N, int(b * SR))
-        n = i1 - i0
-        if n <= 0:
-            continue
-        # fundido de potencia constante: dura exactamente lo que se solapan los acordes
-        att = PROG[j - 1][1] - a if j > 0 else 1.5
-        rel = b - PROG[j + 1][0] if j + 1 < len(PROG) else 0.05
-        swell = 0.86 + 0.14 * np.clip(np.arange(n, dtype=np.float32) / (1.6 * SR), 0, 1)
-        e = (env_seg(n, att, rel) * swell)[:, None]
-        seg = np.zeros((n, 2), np.float32)
-        for m in CH[ch]:
-            seg += pad_voice(midi(m), n, br, rng) * (0.9 if m < 55 else 0.7)
-        pad[i0:i1] += seg * e * lvl
-        t = np.arange(n, dtype=np.float32) / SR
-        fb = midi(ROOT[ch])
-        bs = np.sin(2 * np.pi * fb * t) + 0.3 * np.sin(4 * np.pi * fb * t) + 0.12 * np.sin(6 * np.pi * fb * t)
-        bass[i0:i1] += bs * env_seg(n, att, rel) * lvl
-
-    drums = np.zeros(N, np.float32)
-    # golpes grandes
-    for t0, p, d, amp in ((T_TITLE_HIT - 0.02, 48, 1.6, 1.2), (31.95, 46, 1.4, 0.7),
-                          (T_CLAMO_HIT - 0.02, 46, 1.8, 1.3), (T_CIERRE - 0.02, 44, 2.0, 1.2)):
-        drums += drum(N, t0, p, d, amp, 0.5, rng)
-    # pulso creciente (Dalila insiste)
-    beat = 0.6
-    t0 = 26.6
-    k = 0
-    while t0 + k * beat < 31.6:
-        acc = [1.0, 0.45, 0.7, 0.45][k % 4]
-        ramp = 0.3 + 0.6 * (k * beat) / 5.0
-        drums += drum(N, t0 + k * beat, 72, 0.32, acc * ramp * 0.95, 0.3, rng)
-        k += 1
-    # latido (la fuerza se va)
-    for tb in (43.2, 44.5, 45.8, 47.0):
-        drums += drum(N, tb, 52, 0.25, 0.35, 0.05, rng)
-        drums += drum(N, tb + 0.24, 50, 0.22, 0.22, 0.05, rng)
-    # tambores épicos (vuelve la fuerza)
-    pat = [(0, 1.0), (0.6, 0.5), (0.9, 0.5), (1.2, 0.8), (1.8, 0.5), (2.1, 0.6), (2.25, 0.6),
-           (2.4, 1.0), (3.0, 0.5), (3.3, 0.5), (3.6, 0.8), (4.05, 0.6), (4.2, 0.7), (4.35, 0.8), (4.5, 0.9)]
-    for dt, acc in pat:
-        tt = T_CLAMO_HIT + 0.6 + dt
-        if tt < T_CIERRE - 0.1:
-            drums += drum(N, tt, 64, 0.35, acc * 0.75, 0.35, rng)
-
-    bells = np.zeros(N, np.float32)
-    for t0, m, amp in ((1.3, 81, 0.18), (6.3, 77, 0.15), (T_TITLE_HIT, 86, 0.16), (13.4, 81, 0.12),
-                       (32.4, 81, 0.15), (35.0, 77, 0.10), (37.6, 74, 0.12), (49.0, 86, 0.10),
-                       (T_CIERRE + 0.5, 86, 0.16), (55.6, 81, 0.15), (56.4, 78, 0.12)):
-        bells += bell(N, t0, midi(m), amp)
-
-    rise = riser(N, 11.0, T_TITLE_HIT, 0.16, rng) + riser(N, 46.3, T_CLAMO_HIT, 0.2, rng) \
-        + riser(N, 30.4, 31.95, 0.08, rng)
-
-    # reverberación por convolución
-    ir_n = int(2.8 * SR)
-    ti = np.arange(ir_n, dtype=np.float32) / SR
-    irs = []
-    for s in (1, 2):
-        r = np.random.default_rng(100 + s).standard_normal(ir_n).astype(np.float32)
-        r = np.convolve(r, np.ones(6) / 6, mode="same")
-        r *= np.exp(-ti * 6.9 / 2.4)
-        r[: int(0.012 * SR)] = 0
-        irs.append(r / np.sqrt(np.sum(r ** 2)))
-
-    dry = np.zeros((N, 2), np.float32)
-    dry += pad * 0.11
-    dry += (bass * 0.16)[:, None]
-    dry += (drums * 0.42)[:, None]
-    dry += (bells * 0.5)[:, None] * np.array([0.8, 1.0], np.float32)
-    dry += (rise * 0.6)[:, None]
-    send = pad * 0.10 + (bells * 0.6)[:, None] + (drums * 0.12)[:, None] + (rise * 0.3)[:, None]
-    wet = np.stack([fft_convolve(send[:, 0], irs[0]), fft_convolve(send[:, 1], irs[1])], axis=1)
-    mix = dry + wet * 0.55
-
-    t = np.arange(N, dtype=np.float32) / SR
-    master = np.clip(t / 1.2, 0, 1) * (1 - np.clip((t - (DURATION - 2.5)) / 2.5, 0, 1)) ** 1.5
-    mix *= master[:, None]
-    mix /= np.max(np.abs(mix)) + 1e-9
-    mix = np.tanh(mix * 1.2) / np.tanh(1.2)
-    mix *= 0.89 / (np.max(np.abs(mix)) + 1e-9)
-
-    pcm = (mix * 32767).astype(np.int16)
-    with wave.open(path, "wb") as wf:
-        wf.setnchannels(2)
-        wf.setsampwidth(2)
-        wf.setframerate(SR)
-        wf.writeframes(pcm.tobytes())
-
-
 # ----------------------------------------------------------------------------
 
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(BASE, "..", "intro_sanson_dalila.mp4")
     out = os.path.abspath(out)
     tmp_wav = os.path.splitext(out)[0] + "_musica.wav"
-    print("Generando música…", flush=True)
-    build_music(tmp_wav)
-    gain = min(0.0, TARGET_LUFS - measure_lufs(tmp_wav))  # solo bajar: la mezcla ya tiene pico de -1 dBFS
+    print("Preparando la canción…", flush=True)
+    build_audio(tmp_wav)
+    gain = min(0.0, TARGET_LUFS - measure_lufs(tmp_wav))  # solo bajar, para no saturar
     print(f"  ganancia de audio: {gain:+.1f} dB (objetivo {TARGET_LUFS} LUFS)", flush=True)
     print("Renderizando", NFRAMES, "cuadros…", flush=True)
     cmd = ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
